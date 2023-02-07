@@ -1,5 +1,7 @@
 use std::{sync::mpsc::Receiver, ops::Deref};
 
+use crate::{error::ApplicationError, application::Application};
+
 type KeyCallbackFunc = fn(&mut glfw::Window, glfw::Key, glfw::Scancode, glfw::Action, glfw::Modifiers);
 
 pub struct Window {
@@ -10,14 +12,13 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn new(glfw: &mut glfw::Glfw, width: u32, height: u32, title: &str) -> Result<Window, &'static str> {
+    pub fn new(glfw: &mut glfw::Glfw, width: u32, height: u32, title: &str) -> Result<Window, ApplicationError> {
         glfw.window_hint(glfw::WindowHint::Resizable(false));
         glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
 
-        let (mut window, events) = match glfw.create_window(width, height, title, glfw::WindowMode::Windowed) {
-            Some(val) => val,
-            None => return Err("Failed to create window and event receiver") 
-        };
+        let (mut window, events) = 
+            glfw.create_window(width, height, title, glfw::WindowMode::Windowed)
+            .ok_or(ApplicationError::new("Window", "Failed to create window and event receiver"))?;
 
         window.set_key_polling(true);
 

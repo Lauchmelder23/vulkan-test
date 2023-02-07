@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::window::Window;
+use crate::{window::Window, error::ApplicationError};
 
 fn key_callback_func(window: &mut glfw::Window, key: glfw::Key, _: glfw::Scancode, action: glfw::Action, _: glfw::Modifiers) {
     if key == glfw::Key::Escape && action == glfw::Action::Press {
@@ -16,10 +16,10 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn new() -> Result<Application, &'static str> {
+    pub fn new() -> Result<Application, ApplicationError> {
         let mut glfw = match glfw::init(glfw::FAIL_ON_ERRORS) {
             Ok(instance) => instance,
-            Err(_) => return Err("Failed to initialize GLFW")
+            Err(_) => return Err(ApplicationError::new("GLFW", "Failed to initialize GLFW"))
         };
 
         let mut window = Window::new(&mut glfw, 800, 800, "Vulkan Test")?;
@@ -35,29 +35,27 @@ impl Application {
         })
     }
 
-    fn init_vulkan(glfw: &glfw::Glfw) -> Result<Arc<vulkano::instance::Instance>, &'static str> {
+    fn init_vulkan(glfw: &glfw::Glfw) -> Result<Arc<vulkano::instance::Instance>, ApplicationError> {
         let mut create_info = vulkano::instance::InstanceCreateInfo::application_from_cargo_toml();
         create_info.engine_name = Some("No engine".into());
         create_info.engine_version = vulkano::Version::V1_0;
         create_info.max_api_version = Some(vulkano::Version::V1_0);
 
-        if let Some(extensions) = glfw.get_required_instance_extensions() {
-            create_info.enabled_extensions = vulkano::instance::InstanceExtensions::from_iter(extensions.iter().map(|name| name.as_str()));
-        } else {
-            return Err("Failed to fetch GLFW's required instance extensions");
-        }
+        let required_extensions = glfw.get_required_instance_extensions().ok_or(
+            ApplicationError::new("GLFW", "Failed to get required GLFW extensions")
+        )?;
 
-        if let Ok(library) = vulkano::VulkanLibrary::new() {
-            return match vulkano::instance::Instance::new(library, create_info) {
-                Ok(instance) => Ok(instance),
-                Err(_) => Err("Failed to create Vulkan instance")
-            };
-        }
+        create_info.enabled_extensions = vulkano::instance::InstanceExtensions::from_iter(
+            required_extensions.iter().map(|ext| ext.as_str())
+        );
 
-        return Err("Failed to create Vulkano library");
+        let library = vulkano::library::VulkanLibrary::new()?;
+        let instance = vulkano::instance::Instance::new(library, create_info)?;
+
+        Ok(instance)
     }
 
-    pub fn run(&mut self) -> Result<(), &'static str> {
+    pub fn run(&mut self) -> Result<(), ApplicationError> {
         while !self.window.should_close() {
             self.glfw.poll_events();
             self.window.handle_events();

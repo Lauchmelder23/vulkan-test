@@ -10,4 +10,4 @@ vulkano = "0.31.0"
 glfw = { version = "0.50.0", features = ["vulkan"] }
 
 [profile.dev]
-opt-level = 1
+# opt-level = 1
