@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use vulkano::{LoadingError, instance::{self, InstanceCreationError, Instance, InstanceCreateInfo}};
+use vulkano::{LoadingError, instance::{self, InstanceCreationError, Instance, InstanceCreateInfo}, OomError};
 
 #[derive(Debug)]
 pub struct ApplicationError {
@@ -35,8 +35,8 @@ impl From<LoadingError> for ApplicationError {
 impl From<InstanceCreationError> for ApplicationError {
     fn from(value: InstanceCreationError) -> Self {
         ApplicationError { 
-            what: "Instance Creation Error".into(), 
-            which: match value {
+            which: "Instance Creation Error".into(), 
+            what: match value {
                 InstanceCreationError::ExtensionNotPresent => "Extension not present".into(),
                 InstanceCreationError::ExtensionRestrictionNotMet(error) => error.to_string(),
                 InstanceCreationError::IncompatibleDriver => "Incompatible driver".into(),
@@ -46,5 +46,11 @@ impl From<InstanceCreationError> for ApplicationError {
                 InstanceCreationError::RequirementNotMet { required_for, requires_one_of } => format!("{} requires one of {}", required_for, requires_one_of)
             }
         }
+    }
+}
+
+impl From<OomError> for ApplicationError {
+    fn from(value: OomError) -> Self {
+        ApplicationError { what: value.to_string(), which: "Out of Memory".into() }
     }
 }
